@@ -1,0 +1,26 @@
+<div id="eventbrite-widget-container-964311781497"></div>
+
+<script src="https://www.eventbrite.com/static/widgets/eb_widgets.js"></script>
+
+<script type="text/javascript">
+  var EventbriteID = "0"
+  window.onmessage = (event) => {
+      EventbriteID = event.data;
+      console.log('Eventbrite ID:" + EventbriteID');
+  };
+    var exampleCallback = function() {
+        console.log('Order complete!');
+    };
+
+    window.EBWidgets.createWidget({
+        // Required
+        widgetType: 'checkout',
+        eventId: 964311781497,
+        iframeContainerId: 'eventbrite-widget-container-964311781497',
+
+        // Optional
+      	iframeBorderColor: blue,
+        iframeContainerHeight: 425,  // Widget height in pixels. Defaults to a minimum of 425px if not provided
+        onOrderComplete: exampleCallback  // Method called when an order has successfully completed
+    });
+</script>
