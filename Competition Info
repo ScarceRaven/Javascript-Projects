@@ -1,0 +1,178 @@
+import wixWindowFrontend from "wix-window-frontend";
+import wixData from 'wix-data';
+import { session } from "wix-storage-frontend";
+
+$w.onReady(function () {
+
+    $w("#dynamicDataset").onReady(() => {
+
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+        if (currentMonth >= 8) { //skip to the next year if the month is Septemeber or later
+            currentYear = currentYear + 1;
+        }
+
+        session.setItem("year", currentYear);
+        let startDate = new Date();
+        let endDate = new Date();
+        let month = "";
+        let year = "";
+        let startDay = "";
+        let endDay = "";
+        let startDayOrd = "";
+        let endDayOrd = "";
+        let startDayOrdCombo = "";
+        let endDayOrdCombo = "";
+        let yearNum = 0;
+        let submissionsActive = false;
+        let competitionCompetitors = 0;
+        let link = "";
+        let picture = "";
+        let winnerName = "";
+
+       const getDates = async () => {
+		let metaData = [];
+		let currentYearTemp = currentYear;
+		while (metaData.length === 0){//keep trying previous years until we find one that is suitable to load.
+		let results = await wixData.query("HomePage")
+		.eq("title", currentYearTemp.toString())
+		.limit(1)
+		.find()
+		metaData=results.items[0];
+		currentYearTemp = currentYearTemp -1;
+		}
+
+		let submissionsActive = metaData.inSeason;
+		let startDateString = metaData.startDate;
+		let endDateString = metaData.endDate;
+		let startDateTemp = new Date (startDateString)
+		let endDateTemp = new Date (endDateString);
+		startDate = startDateTemp;
+		endDate = endDateTemp;
+		month = getMonthName(startDate.getMonth()+1);
+		year = startDate.getFullYear().toString();
+		yearNum = startDate.getFullYear();
+		startDay = startDate.getDate().toString();
+		endDay = endDate.getDate().toString();
+		startDayOrd = getOrdinalSuffix(startDate.getDate().toString());
+		endDayOrd = getOrdinalSuffix(endDate.getDate().toString());
+		startDayOrdCombo = startDate.getDate().toString() + getOrdinalSuffix(startDate.getDate().toString());
+		endDayOrdCombo = endDate.getDate().toString() + getOrdinalSuffix(endDate.getDate().toString());
+		competitionCompetitors = metaData.competitionComedians;
+	}
+
+        const getLastWinner = async () => {
+		let lastWinnerData = [];
+		let lastYear = currentYear-1;
+		console.log("Last year set to: " + lastYear.toString());
+		while (lastWinnerData.length === 0){//keep trying previous years until we find one that is suitable to load.
+		let results = await wixData.query("HomePage")
+		.eq("title", lastYear.toString())
+		.limit(1)
+		.find()
+		lastWinnerData=results.items[0];
+		link = lastWinnerData.winnerSite;
+		picture = lastWinnerData.winnerPicture;
+		winnerName = lastWinnerData.winner;
+		}
+
+	    }
+
+        // Define an array of month names
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+
+        /**
+         * Converts a month number (1-12) to its corresponding month name.
+         * @param {number} monthNumber - The number representing the month (1 for January, 12 for December).
+         * @returns {string} The full month name.
+         */
+        function getMonthName(monthNumber) {
+            // Adjust for 0-based indexing of arrays (month 1 is index 0)
+            if (monthNumber >= 1 && monthNumber <= 12) {
+                return monthNames[monthNumber - 1];
+            } else {
+                return "Invalid Month Number"; // Handle invalid input
+            }
+        }
+
+        function getOrdinalSuffix(n) {
+            if (n > 3 && n < 21) { // Numbers 4-20 always get "th"
+                return "th";
+            }
+            switch (n % 10) {
+            case 1:
+                return "st";
+            case 2:
+                return "nd";
+            case 3:
+                return "rd";
+            default:
+                return "th";
+            }
+        }
+
+        const main = async () => {
+            await getDates();
+            await getLastWinner();
+            let project = $w("#dynamicDataset").getCurrentItem();
+            let currentMonth = new Date().getMonth();
+            let currentDay = new Date().getDate();
+            let currentYear = new Date().getFullYear();
+            $w('#WinnerPhoto').src = picture;
+            $w('#Deadline').text = "All submissions must be received by " + project.deadline + ".";
+
+            if (project.submissionsLive && wixWindowFrontend.formFactor === "Desktop") {
+				$w('#WinnerLink').link = link;
+                $w('#WinnerNameUpper').text = winnerName;
+                $w('#WinnerNameLower').text = winnerName;
+                $w("#SubmissionsClosed").hide();
+                $w("#SubmissionsClosed").collapse();
+                $w("#ShowcasePromo").show();
+                $w("#ShowcasePromo").expand();
+            }
+            if (wixWindowFrontend.formFactor === "Mobile") {
+                $w('#WinnerPhoto').src = picture;
+                $w('#ChampionName').text = winnerName;
+                $w('#MobileDisclaimer').text = project.disclaimer;
+            }
+
+            //Turn off submissions between May 2nd and August 31st inclusive.
+
+            let closingMonth = 4;
+            let closingDay = 0;
+
+            if (project.deadline.includes("April")) {
+                closingMonth = 3;
+            }
+
+            let pieces = project.deadline.split("/");
+            closingDay = parseInt(pieces[1]);
+
+            console.log("Ending Month: " + closingMonth);
+            console.log("Ending Day: " + closingDay);
+
+            if (currentMonth >= closingMonth && currentMonth <= 7 || ((currentMonth === (closingMonth - 1) && currentDay > closingDay))) {
+                $w('#YearText').text = "For June " + currentYear.toString();
+                $w('#ComeBack').text = "The application for " + (currentYear + 1).toString() + " will open on September 1st."
+                $w('#SubmissionsClosed').show();
+                $w('#SubmissionsClosed').expand();
+                $w('#ShowcasePromo').hide();
+                $w('#ShowcasePromo').collapse();
+
+                if (wixWindowFrontend.formFactor === "Desktop") {
+                    $w('#SubmissionsOpen').hide();
+                    $w('#SubmissionsOpen').collapse();
+                } else {
+                    $w('#MobileSubmissionsOpen').hide();
+                    $w('#MobileSubmissionsOpen').collapse();
+                    $w('#MobileEnterButtonLower').hide();
+                    $w('#MobileEnterButtonLower').collapse();
+                }
+            }
+        }
+        main();
+    });
+});
