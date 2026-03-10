@@ -1,0 +1,503 @@
+// Velo API Reference: https://www.wix.com/velo/reference/api-overview/introduction
+
+import wixWindowFrontend from "wix-window-frontend";
+import wixData from 'wix-data';
+import { session } from "wix-storage-frontend";
+import wixLocation from 'wix-location-frontend';
+
+$w.onReady(function () {
+
+    $w("#dynamicDataset").onReady(() => {
+
+        const anchor = wixLocation.query['anchor']; //sets anchor point to ticket sales section
+        if (anchor) $w('#' + anchor).scrollTo(); //scrolls to anchor point
+        let thisShow = $w("#dynamicDataset").getCurrentItem(); //thisShow = the show
+        const allComedians = "Comedians";
+        const allShows = ["Heat 1", "Heat 2", "Heat 3", "Heat 4", "Heat 5", "Showcase 1", "Showcase 2", "Showcase 3", "Semi-finals", "Finals", "Headliner"];
+        const showKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "H"];
+        let ActiveComedians = [];
+        session.setItem("year", thisShow.year);
+
+        const createComedianList = async () => {
+            for (let x = 0; x < allShows.length; x++) {
+                if (thisShow.title.includes(allShows[x])) {
+                    if (x < 10) { //non headliner shows, because x = 10 means shows [10] = "Headliner"
+                        let results = await wixData.query(allComedians)
+                            .eq("showKey", showKeys[x])
+                            .eq("isActive", true)
+                            .eq("year", thisShow.year)
+                            .limit(20)
+                            .find()
+                        for (let i = 0; i < results.items.length; i++) {
+                            let add = await results.items[i];
+                            ActiveComedians.push(add);
+                            ActiveComedians.sort();
+
+                        }
+
+                    } else { //headliners (x = 10), shows[10] = "Headliner"
+                        if (thisShow.title.includes("All")) { //add all headliners
+                            $w('#Description').hide();
+                            $w('#Description').collapse();
+                            let results = await wixData.query(allComedians)
+                                .contains("showKey", showKeys[x])
+                                .eq("isActive", true)
+                                .eq("year", thisShow.year)
+                                .limit(9) //only 9 templates created. Need to make more if there are more than 9 headliners
+                                .find()
+                            for (let i = 0; i < results.items.length; i++) {
+                                let add = await results.items[i];
+                                ActiveComedians.push(add);
+                                ActiveComedians.sort();
+                            }
+                        } else {
+                            let headlinerNumber = "0";
+                            let pieces = thisShow.title.split(' ');
+                            console.log(thisShow.title);
+                            headlinerNumber = "H" + pieces[1];
+                            console.log("Headliner number:" + headlinerNumber);
+                            let results = await wixData.query(allComedians)
+                                .contains("showKey", headlinerNumber)
+                                .eq("isActive", true)
+                                .eq("year", thisShow.year)
+                                .limit(1)
+                                .find()
+                            for (let i = 0; i < results.items.length; i++) {
+                                let add = await results.items[i];
+                                ActiveComedians.push(add);
+                                ActiveComedians.sort();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        //turn off tickets sales links if events are not live
+        const initializeTicketLinks = () => {
+            //disable links for desktop site when event is not live
+            if ((!thisShow.isLive) && wixWindowFrontend.formFactor === "Desktop") {
+                $w("#TicketSalesSection").hide();
+                $w("#TicketSalesSection").collapse();
+                $w("#HeadlinerTicketSalesSection").hide();
+                $w("#HeadlinerTicketSalesSection").collapse();
+                for (let i = 0; i < ActiveComedians.length; i++) {
+                    $w("#Box" + (i + 1)).hide();
+                }
+            }
+            //disable links from mobile images if ticket sales are not live
+            else if ((!thisShow.isLive) && wixWindowFrontend.formFactor === "Mobile") {
+                for (let i = 0; i < ActiveComedians.length; i++) {
+                    $w("#MobileButton" + (i + 1)).link = null;
+                }
+            }
+            //turn on mobile tickets sales links if events are live
+            else if (wixWindowFrontend.formFactor === "Mobile" && thisShow.isLive && !thisShow.title.includes("All")) {
+                $w('#HeaderButton').target = "_self";
+                $w('#HeaderButton').link = thisShow.ticketLink;
+                if (thisShow.title.includes("Headliner")) {
+                    $w('#HeadlinerTicketSalesSection').show();
+                    $w('#HeadlinerTicketSalesSection').expand();
+                    $w("#HeadlinerEventbriteSales").postMessage(thisShow.eventbriteID);
+                } else {
+                    $w('#TicketSalesSection').show();
+                    $w('#TicketSalesSection').expand();
+                    $w("#eventbriteSales").postMessage(thisShow.eventbriteID);
+                }
+
+                for (let i = 0; i < ActiveComedians.length; i++) {
+                    console.log("Mobile Button " + (i + 1) + " is Active.");
+                    $w("#ComedianImage" + (i + 1)).link = ActiveComedians[i].ticketLink;
+                }
+            } else if (wixWindowFrontend.formFactor === "Desktop" && thisShow.isLive && !thisShow.title.includes("All")) {
+                if (thisShow.title.includes("Headliner")) {
+                    $w('#HeadlinerTicketSalesSection').show();
+                    $w('#HeadlinerTicketSalesSection').expand();
+                    $w("#HeadlinerEventbriteSales").postMessage(thisShow.eventbriteID);
+                } else {
+                    $w('#TicketSalesSection').show();
+                    $w('#TicketSalesSection').expand();
+                    $w("#eventbriteSales").postMessage(thisShow.eventbriteID);
+                }
+            }
+        }
+
+        const initializeComedians = async () => {
+            if (thisShow.title.includes("Headliner") && ActiveComedians.length > 1) {
+                ActiveComedians.sort((a, b) => a.showKey[0].localeCompare(b.showKey[0]));
+            } else {
+                ActiveComedians.sort((a, b) => a.title.trim().localeCompare(b.title.trim())); //sort to alphabetical order if not headliners
+            }
+            for (let i = 0; i < ActiveComedians.length; i++) {
+                let bioTag = "#" + (i + 1).toString();
+                let imageTag = "#ComedianImage" + (i + 1).toString();
+                $w(bioTag).text = ActiveComedians[i].bio;
+                $w("#Name" + (i + 1)).text = ActiveComedians[i].title.trim();
+                $w("#Name" + (i + 1) + "Lower").text = ActiveComedians[i].title.trim();
+                if (thisShow.title.includes("Showcase") && ActiveComedians[i].showcaseImage != null) { //showcase images
+                    $w(imageTag).src = ActiveComedians[i].showcaseImage;
+                } else if (thisShow.title.includes("Heat") || thisShow.title.includes("Headliners") && ActiveComedians[i].heatImage != null) { //heat and headliner images
+                    $w(imageTag).src = ActiveComedians[i].heatImage;
+                } else if (thisShow.title.includes("Semi") && ActiveComedians[i].semifinalsImage != null) { //semi-finals images
+                    $w(imageTag).src = ActiveComedians[i].semifinalsImage;
+                } else if (thisShow.title.includes("Finals") && ActiveComedians[i].finalsImage != null) { //finals images
+                    $w(imageTag).src = ActiveComedians[i].finalsImage;
+                } else { //no image found
+                    $w(imageTag).src = "https://static.wixstatic.com/media/825a69_419a5d49fbd34882a035610d8c947f46~mv2.png";
+                    console.log("Image not found for " + ActiveComedians[i].title);
+                }
+            }
+        }
+
+        const initializeRelatedShows = () => {
+            //find out how many related shows there are to display
+            let allRelatedShows = [thisShow.relatedShow1, thisShow.relatedShow2, thisShow.relatedShow3,
+                thisShow.relatedShow4, thisShow.relatedShow5, thisShow.relatedShow6, thisShow.relatedShow7
+            ];
+            let relatedShows = [];
+            for (let i = 0; i < 7; i++) {
+                if (allRelatedShows[i] != null) {
+                    relatedShows.push(allRelatedShows[i]);
+                }
+            }
+            console.log("Array length" + relatedShows.length);
+            if (relatedShows.length === 0) {
+                $w('#MobileRelatedShowsSection1').hide();
+                $w('#MobileRelatedShowsSection1').collapse();
+                if (wixWindowFrontend.formFactor === "Desktop"){
+                    $w('#RelatedShowSection1').hide();
+                    $w('#RelatedShowSection1').collapse();
+                    $w('#RelatedShowSection2').hide();
+                    $w('#RelatedShowSection2').collapse();
+                    $w('#RelatedShowSection3').hide();
+                    $w('#RelatedShowSection3').collapse();
+                    $w('#MobileRelatedShowsSection2').hide();
+                    $w('#MobileRelatedShowsSection2').collapse();
+                    $w('#MobileRelatedShowsSection3').hide();
+                    $w('#MobileRelatedShowsSection3').collapse();
+                    $w('#MobileRelatedShowsSection4').hide();
+                    $w('#MobileRelatedShowsSection4').collapse();
+                }
+                else if (wixWindowFrontend.formFactor === "Mobile"){
+                    $w('#MobileRelatedShowsSection2').hide();
+                    $w('#MobileRelatedShowsSection2').collapse();
+
+                }
+                
+            }
+            else if (relatedShows.length === 3) {
+                if (wixWindowFrontend.formFactor === "Desktop") {
+                    $w('#RelatedShowSection2').show();
+                    $w('#RelatedShowSection2').expand();
+                    $w('#RelatedShow3').src = thisShow.relatedShow1;
+                    $w('#relatedShowButton3').link = thisShow.relatedShow1Link;
+                    $w('#RelatedShow4').src = thisShow.relatedShow2;
+                    $w('#relatedShowButton4').link = thisShow.relatedShow2Link;
+                    $w('#RelatedShow5').src = thisShow.relatedShow3;
+                    $w('#relatedShowButton5').link = thisShow.relatedShow3Link;
+                } else {
+                    $w('#MobileRelatedShowsSection1').show();
+                    $w('#MobileRelatedShowsSection1').expand();
+                    $w('#MobileRelatedShowsSection2').show();
+                    $w('#MobileRelatedShowsSection2').expand();
+
+                    $w('#MobileRelatedShow1').src = thisShow.relatedShow1;
+                    $w('#MobileRelatedShow2').src = thisShow.relatedShow2;
+                    $w('#MobileRelatedShow3').src = thisShow.relatedShow3;
+                    $w('#MobileRelatedShow4').src = null;
+                    $w('#MobileRelatedShow1').link = thisShow.relatedShow1Link;
+                    $w('#MobileRelatedShow2').link = thisShow.relatedShow2Link;
+                    $w('#MobileRelatedShow3').link = thisShow.relatedShow3Link;
+                }
+            } else if (relatedShows.length < 5) {
+                if (wixWindowFrontend.formFactor === "Desktop") {
+                    $w('#RelatedShowSection1').show();
+                    $w('#RelatedShowSection1').expand();
+                    $w('#RelatedShowSection2').show();
+                    $w('#RelatedShowSection2').expand();
+                    $w('#relatedShowButton1').link = thisShow.relatedShow1Link;
+                    $w('#relatedShowButton2').link = thisShow.relatedShow2Link;
+                    $w('#relatedShowButton3').link = thisShow.relatedShow3Link;
+                    $w('#relatedShowButton4').link = thisShow.relatedShow4Link;
+                } else {
+                    $w('#MobileRelatedShowsSection1').show();
+                    $w('#MobileRelatedShowsSection1').expand();
+                    $w('#MobileRelatedShowsSection2').show();
+                    $w('#MobileRelatedShowsSection2').expand();
+                    $w('#MobileRelatedShow1').src = thisShow.relatedShow1;
+                    $w('#MobileRelatedShow2').src = thisShow.relatedShow2;
+                    $w('#MobileRelatedShow3').src = thisShow.relatedShow3;
+                    $w('#MobileRelatedShow4').src = thisShow.relatedShow4;
+                    $w('#MobileRelatedShow1').link = thisShow.relatedShow1Link;
+                    $w('#MobileRelatedShow2').link = thisShow.relatedShow2Link;
+                    $w('#MobileRelatedShow3').link = thisShow.relatedShow3Link;
+                    $w('#MobileRelatedShow4').link = thisShow.relatedShow4Link;
+                }
+            } else if (relatedShows.length === 7) {
+                if (wixWindowFrontend.formFactor === "Desktop") {
+                    $w('#RelatedShowSection1').show();
+                    $w('#RelatedShowSection1').expand();
+                    $w('#RelatedShowSection2').show();
+                    $w('#RelatedShowSection2').expand();
+                    $w('#RelatedShowSection3').show();
+                    $w('#RelatedShowSection3').expand();
+                    $w('#relatedShowButton1').link = thisShow.relatedShow1Link;
+                    $w('#relatedShowButton2').link = thisShow.relatedShow2Link;
+                    $w('#relatedShowButton3').link = thisShow.relatedShow3Link;
+                    $w('#relatedShowButton4').link = thisShow.relatedShow4Link;
+                    $w('#relatedShowButton5').link = thisShow.relatedShow5Link;
+                    $w('#relatedShowButton6').link = thisShow.relatedShow6Link;
+                    $w('#relatedShowButton7').link = thisShow.relatedShow7Link;
+                } else {
+                    for (let i = 1; i < 5; i++) {
+                        $w('#MobileRelatedShowsSection' + i).show();
+                        $w('#MobileRelatedShowsSection' + i).expand();
+                    }
+                    for (let i = 1; i < 8; i++) {
+                        $w('#MobileRelatedShow' + i).src = thisShow.relatedShow + i;
+                    }
+                    $w('#MobileRelatedShow1').src = thisShow.relatedShow1;
+                    $w('#MobileRelatedShow2').src = thisShow.relatedShow2;
+                    $w('#MobileRelatedShow3').src = thisShow.relatedShow3;
+                    $w('#MobileRelatedShow4').src = thisShow.relatedShow4;
+                    $w('#MobileRelatedShow5').src = thisShow.relatedShow5;
+                    $w('#MobileRelatedShow6').src = thisShow.relatedShow6;
+                    $w('#MobileRelatedShow7').src = thisShow.relatedShow7;
+                    $w(('#MobileRelatedShow1')).target = "_self";
+                    $w(('#MobileRelatedShow2')).target = "_self";
+                    $w(('#MobileRelatedShow3')).target = "_self";
+                    $w(('#MobileRelatedShow4')).target = "_self";
+                    $w(('#MobileRelatedShow5')).target = "_self";
+                    $w(('#MobileRelatedShow6')).target = "_self";
+                    $w(('#MobileRelatedShow7')).target = "_self"; //open related show links in same tab for mobile
+                    $w('#MobileRelatedShow1').link = thisShow.relatedShow1Link;
+                    $w('#MobileRelatedShow2').link = thisShow.relatedShow2Link;
+                    $w('#MobileRelatedShow3').link = thisShow.relatedShow3Link;
+                    $w('#MobileRelatedShow4').link = thisShow.relatedShow4Link;
+                    $w('#MobileRelatedShow5').link = thisShow.relatedShow5Link;
+                    $w('#MobileRelatedShow6').link = thisShow.relatedShow6Link;
+                    $w('#MobileRelatedShow7').link = thisShow.relatedShow7Link;
+
+                    /*
+                    for (let i = 1; i <= 7; i++){
+                        $w(('#MobileRelatedShow') + i).target = "_self"; //open related show links in same tab for mobile
+                        let thisLink = "relatedShow" + i + "Link";
+                        $w('#MobileRelatedShow7'+ i).link = thisShow.thisLink;
+                    }*/
+                }
+            }
+            if (wixWindowFrontend.formFactor === "Mobile") {
+
+                $w('#Day').text = thisShow.day;
+                if (thisShow.time === "") {
+                    $w('#Day').text = (thisShow.date + " \n" + thisShow.time);
+                }
+
+                $w("#HostImage").link = thisShow.hostWebsite;
+                $w("#HostImage").link = thisShow.hostWebsite;
+            }
+        }
+
+        const initializeBackground = () => {
+            $w('#HeaderImage').src = thisShow.heatHeader;
+            if (wixWindowFrontend.formFactor === "Mobile") {
+                if (thisShow.mobileHeader != null) {
+                    $w('#HeaderImage').src = thisShow.mobileHeader;
+                }
+                //$w("#MobileButtonHeaderBackground")= thisShow.background;
+            }
+        }
+
+        const initalizeEmpty = () => { //setup for initializing pages that don't have a host or any comedians assigned yet
+            if (!(thisShow.hostName === undefined || thisShow.hostName === "")) {
+                $w('#HostSection').show();
+                $w('#HostSection').expand();
+                $w('#HostName').show();
+                $w('#HostName').expand();
+                $w('#HostNameLower').show();
+                $w('#HostNameLower').expand();
+                $w('#HostName').text = thisShow.hostName + "!";
+                $w('#HostNameLower').text = thisShow.hostName + "!";
+
+            }
+            
+            if (ActiveComedians.length === 0 && !(thisShow.title.includes("Masters"))) { //don't show the no comedians section for Masters of Improv
+                console.log("ActiveComedians is empty");
+                $w('#NoComedians').show();
+                $w('#NoComedians').expand();
+                $w('#FeaturedComedians').hide();
+                $w('#FeaturedComedians').collapse();
+            }
+
+        }
+
+        const initializeHeadliners = () => {
+            if (thisShow.title.includes("Headliner")) {
+                ActiveComedians.sort((a, b) => a.date.trim().localeCompare(b.date.trim()));
+                $w('#text431').text = ("Special Guest");
+                if (thisShow.hostName != "") { // add host name if applicable
+                    $w('#HostName').text = thisShow.hostName + "!";
+                    $w('#HostName').text = thisShow.hostName + "!";
+                    $w('#HostName').show();
+                    $w('#HostName').expand();
+                    $w('#HostNameLower').show();
+                    $w('#HostNameLower').expand();
+                }
+                $w('#DateAndTime').hide();
+                $w('#DateAndTime').collapse();
+                $w('#FeaturedComedians').hide();
+                $w('#FeaturedComedians').collapse();
+                $w('#Description').hide();
+                $w('#Description').collapse();
+                $w('#ShowInfo').hide();
+                $w('#ShowInfo').collapse();
+
+                if (!(thisShow.title.includes("All"))) {
+                    $w('#HeaderSection').hide();
+                    $w('#HeaderSection').collapse();
+                    $w('#Day').text = (thisShow.day + ",\n " + thisShow.date + " " + thisShow.year).toUpperCase();
+                }
+
+                if (wixWindowFrontend.formFactor === "Desktop" && thisShow.title.includes("All")) {
+                    $w('#HeadlinerTicketSalesSection').hide();
+                    $w('#HeadlinerTicketSalesSection').collapse();
+                } else {
+                    $w('#MobileButtonHeader').hide();
+                    $w('#MobileButtonHeader').collapse();
+                }
+
+                for (let i = 0; i < ActiveComedians.length; i++) {
+                    $w('#Headliner' + (i + 1) + 'Image').src = ActiveComedians[i].heatImage;
+                    $w('#Headliner' + (i + 1)).show();
+                    $w('#Headliner' + (i + 1)).expand();
+                    $w('#Headliner' + (i + 1) + 'Bio').text = ActiveComedians[i].bio;
+                    $w('#Headliner' + (i + 1) + 'NameA').text = ActiveComedians[i].title;
+                    $w('#Headliner' + (i + 1) + 'NameB').text = ActiveComedians[i].title;
+                    $w('#Headliner' + (i + 1) + 'Name').link = (ActiveComedians[i].website).toString;
+                    $w('#Headliner' + (i + 1) + 'Stage').text = ActiveComedians[i].stage;
+                    $w('#Headliner' + (i + 1) + 'Age').text = ActiveComedians[i].age;
+                    let FirstName = (ActiveComedians[i].title).split(" ");
+                    if (ActiveComedians[i].title.includes("C. Willi")) {
+                        $w('#AboutName' + (i + 1)).text = "About " + FirstName[0] + " " + FirstName[1];
+                    } else {
+                        $w('#AboutName' + (i + 1)).text = "About " + FirstName[0];
+                    }
+
+                    let BigDay = ActiveComedians[i].day.toUpperCase();
+                    let pieces = ActiveComedians[i].date.split("|");
+                    console.log("Debug0");
+                    $w('#Headliner' + (i + 1) + "Date").text = BigDay + ",\n" + pieces[0] + "\n" + pieces [1];
+                    if (thisShow.isLive && wixWindowFrontend.formFactor === "Desktop") { //activates ticket sales links on hover boxes for desktop
+                        console.log("Debug1");
+                        $w('#Headliner' + (i + 1) + 'Hover').show();
+                        $w('#Headliner' + (i + 1) + 'Hover').expand();
+                        $w('#Headliner' + (i + 1) + 'TicketButtonDesktop').target = "_self";
+                        $w('#Headliner' + (i + 1) + 'TicketButtonDesktop').link = ActiveComedians[i].ticketLink;
+                    } else if (thisShow.isLive) { //activates ticket sales links for mobile directly on the headliner image
+                        console.log("Initailizing Ticket Links");
+                        $w('#Headliner' + (i + 1) + 'Image').target = "_self";
+                        $w('#Headliner' + (i + 1) + 'Image').link = ActiveComedians[i].ticketLink;
+                    }
+                    if (!(ActiveComedians[i].videoLink === undefined)) { //add the embedded youtube video if a link exists
+                        $w('#Headliner' + (i + 1) + ("Video")).src = ActiveComedians[i].videoLink;
+                    }
+                }
+            }
+            if (!(thisShow.title.includes("All"))) { //collapse extra sections for single headliner pages
+                for (let i = 1; i < ActiveComedians.length; i++) {
+                    $w('#Headliner' + (i + 1)).hide();
+                    $w('#Headliner' + (i + 1)).collapse();
+                    //$w('#Description').hide();
+                }
+            }
+        }
+
+        const initializeCompetitionShows = () => {
+            if ((thisShow.title.includes("Heat")) || (thisShow.title.includes("Semi")) || (thisShow.title.includes("Final"))) {
+                console.log("Running Heats");
+                $w('#Day').text = (thisShow.day + ",\n " + thisShow.date + " " + thisShow.year).toUpperCase();
+                $w('#Time').text = (thisShow.time + " to " + thisShow.endTime).toUpperCase();
+                for (let i = 0; i < ActiveComedians.length; i++) { // expand the normal (non-headliner) comedian secitons
+                    let sectionNum = "#Comedian" + (i + 1).toString();
+                    console.log("Section number: " + sectionNum + " expanded");
+                    $w('#Button' + (i + 1)).link = thisShow.ticketLink;
+                    $w('#Button' + (i + 1)).target = "_self";
+                    $w(sectionNum).show();
+                    $w(sectionNum).expand();
+                }
+                if (wixWindowFrontend.formFactor === "Mobile") {
+                    if (thisShow.time === null || thisShow.time === undefined) {
+                        $w('#Date').text = thisShow.date;
+                        $w('#TimeTBD').show();
+                        $w('#TimeTBD').expand();
+                    }
+                }
+            }
+        }
+
+        const initializeShowcaseShows = () => {
+            if (thisShow.title.includes("Showcase")) {
+                $w('#Day').text = (thisShow.day + ",\n " + thisShow.date + " " + thisShow.year).toUpperCase();
+                $w('#Time').text = (thisShow.time + " to " + thisShow.endTime).toUpperCase();
+                for (let i = 0; i < ActiveComedians.length; i++) { // expand the normal (non-headliner) comedian secitons
+                    let sectionNum = "#Comedian" + (i + 1).toString();
+                    console.log("Section number: " + sectionNum + " expanded");
+                    $w('#Button' + (i + 1)).link = thisShow.ticketLink;
+                    $w('#Button' + (i + 1)).target = "_self";
+                    $w(sectionNum).show();
+                    $w(sectionNum).expand();
+                }
+
+                if (wixWindowFrontend.formFactor === "Mobile") {
+                    if (thisShow.time != null) {
+                        $w('#Date').text = thisShow.date + (" | ") + thisShow.time;
+                        $w('#Date').show();
+                        $w('#Date').expand();
+                    } else {
+                        $w('#Date').text = thisShow.date;
+                        $w('#Date').show();
+                        $w('#Date').expand();
+                        $w('#TimeTBD').show();
+                        $w('#TimeTBD').expand();
+                    }
+                }
+            }
+        }
+
+        const initializeMatinee = () => {
+            $w('#Day').text = (thisShow.day + ", \n" + thisShow.date + " " + thisShow.year).toUpperCase();
+            $w('#Time').text = (thisShow.time + " to " + thisShow.endTime).toUpperCase();
+            if (wixWindowFrontend.formFactor === "Mobile") {
+                $w('#FeaturedComedians').hide();
+                $w('#FeaturedComedians').collapse();
+                if (thisShow.time === null) {
+                    $w('#TimeTBD').show();
+                    $w('#TimeTBD').expand();
+                }
+            }
+        }
+
+        const main = async () => {
+            await createComedianList();
+            initializeBackground();
+            initializeTicketLinks();
+            initializeComedians();
+            initializeRelatedShows();
+            if (thisShow.title.includes("Headliner")) {
+                initializeHeadliners();
+            } else if (thisShow.title.includes("Showcase")) {
+                initializeShowcaseShows();
+            } else if (thisShow.title.includes("Masters")) {
+                initializeMatinee();
+            } else {
+                initializeCompetitionShows();
+            }
+
+            initalizeEmpty();
+        }
+
+        main();
+
+    });
+
+});
