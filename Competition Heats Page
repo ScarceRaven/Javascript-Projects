@@ -1,0 +1,159 @@
+import { session } from "wix-storage-frontend";
+import wixWindowFrontend from "wix-window-frontend";
+import wixLocation from 'wix-location'; 
+import wixData from 'wix-data'
+
+$w.onReady(function () {
+	
+	let numHeats = 0;
+
+	const getDates = async () => {
+		let metaData = [];
+		if (session.getItem("year")===undefined){
+			let currentMonth = new Date().getMonth();
+			console.log("Month: "+ currentMonth);
+			let currentYear = new Date().getFullYear();
+
+			if (currentMonth >= 8 ){
+				currentYear = currentYear + 1;
+			}
+			session.setItem("year",currentYear);
+		}
+		let results = await wixData.query("HomePage")
+		.eq("title", session.getItem("year").toString())
+		.limit(1)
+		.find()
+		metaData=results.items[0];
+		let numHeatsTemp = metaData.numHeats;
+		numHeats = numHeatsTemp;
+		console.log("Number of Heats:" + numHeats);
+	}
+
+	const main = async () => {
+		await getDates();
+			if (wixWindowFrontend.formFactor === "Desktop"){ //desktop
+				if (numHeats < 4){
+					$w('#Section2').hide();
+					$w('#Section2').collapse();
+				}
+				else if (numHeats < 5){
+					$w('#Heat5').hide();
+					$w('#Heat5').collapse();
+				}
+			}
+			else if (wixWindowFrontend.formFactor === "Mobile"){
+				if (numHeats < 4){
+					console.log("executing");
+					$w('#Section8').show();
+					$w('#Section8').expand();
+					$w('#Section5').show();
+					$w('#Section5').expand();
+				}
+				else if (numHeats > 4){
+					$w('#Section7').show();
+					$w('#Section7').expand();
+					$w('#Section4').show();
+					$w('#Section4').expand();
+					$w('#Section5').show();
+					$w('#Section5').expand();
+				}
+			}
+		
+		$w('#YearUpper').text = session.getItem("year").toString();
+		$w('#YearLower').text = session.getItem("year").toString();
+
+		if (wixWindowFrontend.formFactor === "Desktop"){ //desktop
+			$w('#Heat1Button').onMouseIn((event) => {
+				session.setItem("subselection", "heat-1");
+				$w('#Heat1Button').link = "/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year"));
+				console.log("Sub-selection set to " + session.getItem("subselection")); 
+			})
+			$w('#Heat2Button').onMouseIn((event) => {
+				session.setItem("subselection", "heat-2");
+				$w('#Heat2Button').link = "/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year"));  
+				console.log("Sub-seletion set to " + session.getItem("subselection")); 
+			})
+			$w('#Heat3Button').onMouseIn((event) => {
+				session.setItem("subselection", "heat-3");
+				$w('#Heat3Button').link = "/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year"));  
+				console.log("Sub-seletion set to " + session.getItem("subselection")); 
+			})
+			$w('#Heat4Button').onMouseIn((event) => {
+				session.setItem("subselection", "heat-4");
+				$w('#Heat4Button').link = "/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year"));  
+				console.log("Sub-seletion set to " + session.getItem("subselection")); 
+			})
+			$w('#Heat5Button').onMouseIn((event) => {
+				session.setItem("subselection", "heat-5");
+				$w('#Heat5Button').link = "/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year"));
+				console.log("Sub-seletion set to " + session.getItem("subselection")); 
+			})
+			$w('#SemifinalsButton').onMouseIn((event) => {
+				session.setItem("subselection", "semi-finals");
+				$w('#SemifinalsButton').link = "/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year"));  
+				console.log("Sub-seletion set to " + session.getItem("subselection")); 
+			})
+			$w('#FinalsButton').onMouseIn((event) => {
+				session.setItem("subselection", "finals");  
+				$w('#FinalsButton').link = "/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year"));
+				console.log("Sub-seletion set to " + session.getItem("subselection")); 
+			})
+		}
+		else{ //mobile
+			$w('#MobileHeat1Button').onClick((event) => {
+				session.setItem("subselection", "heat-1");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileHeat2Button').onClick((event) => {
+				session.setItem("subselection", "heat-2");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileHeat3Button').onClick((event) => {
+				session.setItem("subselection", "heat-3");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileHeat3Button2').onClick((event) => {
+				session.setItem("subselection", "heat-3");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileHeat4Button').onClick((event) => {
+				session.setItem("subselection", "heat-4");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileHeat5Button').onClick((event) => {
+				session.setItem("subselection", "heat-5");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileSemifinalsButton').onClick((event) => {
+				session.setItem("subselection", "semi-finals");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileSemifinalsButtonAlt').onClick((event) => {
+				session.setItem("subselection", "semi-finals");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileFinalsButton').onClick((event) => {
+				session.setItem("subselection", "finals");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+			$w('#MobileFinalsButtonAlt').onClick((event) => {
+				session.setItem("subselection", "finals");  
+				console.log("Subselection set to " + session.getItem("subselection")); 
+				wixLocation.to("/shows/"+(session.getItem("subselection"))+ "/" + (session.getItem("year")));
+			})
+
+		}
+		
+	}
+	main();
+});
+
