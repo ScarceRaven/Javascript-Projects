@@ -1,0 +1,41 @@
+import { session } from "wix-storage-frontend";
+import wixWindowFrontend from "wix-window-frontend";
+
+$w.onReady(function () {
+	let currentMonth = new Date().getMonth();
+	console.log("Month: "+ currentMonth);
+	let currentYear = new Date().getFullYear();
+	if (currentMonth >= 8 ){//starting September 1st, the year is automatically updated to begin the new season.
+		currentYear = currentYear + 1;
+	}
+	if((session.getItem("year") === undefined) || (session.getItem("year") === null)){
+		session.setItem("year",currentYear);
+	}
+	console.log(session.getItem("year"));
+	
+	$w('#YearLower').text = session.getItem("year") 
+	$w('#YearUpper').text = session.getItem("year") 
+
+	if (wixWindowFrontend.formFactor === "Desktop"){//desktop
+		$w('#HeadlinerButton').link = "/shows/all-headliners/" + session.getItem("year");
+		$w('#HeadlinerButtonHover').link = "/shows/all-headliners/" + session.getItem("year");
+		console.log("Headliner Button link set to: " + "/shows/all-headliners/" + session.getItem("year"));
+		$w('#HeadlinerButton').onMouseIn((event) => {
+			session.setItem("selection", "Headliner");  
+			console.log("Selection set to " + session.getItem("selection")); 
+		})
+		$w('#CompetitionButton').onMouseIn((event) => {
+			session.setItem("selection", "Competition");  
+			console.log("Seletion set to " + session.getItem("selection")); 
+		})
+		$w('#ShowcaseButton').onMouseIn((event) => {
+			session.setItem("selection", "Showcase");  
+			console.log("Selection set to " + session.getItem("selection")); 
+		})
+	}
+
+	else {//mobile
+		$w('#MobileHeadlinerButton').link = "/shows/all-headliners/" + session.getItem("year");
+	}
+
+});
