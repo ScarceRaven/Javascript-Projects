@@ -1,0 +1,186 @@
+import wixWindowFrontend from "wix-window-frontend";
+import { session } from "wix-storage-frontend";
+import wixData from 'wix-data';
+
+$w.onReady(function () {
+    let AllShows = [];
+    let SortedShows = [];
+    let WednesdayShows = [];
+    let ThursdayShows = [];
+    let FridayShows = [];
+    let SaturdayShows = [];
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+    if (currentMonth >= 6) { //skip to the next year if the month is July or later
+        currentYear = currentYear + 1;
+    }
+
+    const createDailyShowList = async () => {
+        let results = await wixData.query("CompetitionHeats") // Competition heats = Shows collection. Need to fix naming.
+            .eq("isLive", true)
+            .eq("year", currentYear.toString())
+            .isNotEmpty("day")
+            .isNotEmpty("date")
+            .limit(50)
+            .find()
+
+        for (let i = 0; i < results.items.length; i++) {
+            console.log("adding " + results.items[i].title); //names of items from database to be drawn
+            let add = await results.items[i];
+            AllShows.push(add);
+        }
+    }
+
+    const sortShows = () => {
+        for (let i = 0; i < AllShows.length; i++) {
+            if (AllShows[i].day === "Wednesday") {
+                WednesdayShows.push(AllShows[i]);
+            } else if (AllShows[i].day === "Thursday") {
+                ThursdayShows.push(AllShows[i]);
+            } else if (AllShows[i].day === "Friday") {
+                FridayShows.push(AllShows[i]);
+            } else if (AllShows[i].day === "Saturday") {
+                SaturdayShows.push(AllShows[i]);
+            }
+        }
+        WednesdayShows.sort((a, b) => a.time.localeCompare(b.time));
+        ThursdayShows.sort((a, b) => a.time.localeCompare(b.time));
+        FridayShows.sort((a, b) => a.time.localeCompare(b.time));
+        SaturdayShows.sort((a, b) => a.time.localeCompare(b.time));
+        SortedShows = WednesdayShows.concat(ThursdayShows, FridayShows, SaturdayShows);
+
+        /*Bug cathcher
+        console.log("SORTED SHOWS:")
+        for (let i = 0; i < SortedShows.length; i++) {
+            console.log(i + ")" + SortedShows[i].title)
+        }
+        console.log("-----------------------------------")*/
+
+        //collapse any empty sections
+        if (WednesdayShows.length == 0) {
+            $w('#WednesdaySection').hide();
+            $w('#WednesdaySection').collapse();
+        }
+        if (ThursdayShows.length == 0) {
+            $w('#ThursdaySection').hide();
+            $w('#ThursdaySection').collapse();
+        }
+        if (FridayShows.length == 0) {
+            $w('#FridaySection').hide();
+            $w('#FridaySection').collapse();
+        }
+        if (SaturdayShows.length == 0) {
+            $w('#SaturdaySection').hide();
+            $w('#SaturdaySection').collapse();
+        }
+    }
+
+    const drawShows = async () => {
+        let ShowOfDay = 1;
+        for (let i = 0; i < SortedShows.length; i++) {
+            if (i > 0 && (!(SortedShows[i].day).includes(SortedShows[i - 1].day))) { //resets show of day when day changes 
+                ShowOfDay = 1;
+            }
+
+            $w('#' + (SortedShows[i].day) + ShowOfDay).show();
+            $w('#' + (SortedShows[i].day) + ShowOfDay).expand();
+
+            if (SortedShows[i].subtitle != "" && SortedShows[i].subtitle != null) {
+                $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Subtitle').show();
+                $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Subtitle').expand();
+                $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Optional').show();
+                $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Optional').expand();
+                $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Subtitle').text = SortedShows[i].subtitle;
+            }
+
+            let TitleAddOn = "";
+
+            if (SortedShows[i].title.includes("Heat") || SortedShows[i].title.includes("Semi") ||
+                SortedShows[i].title.includes("Final") || SortedShows[i].title.includes("Showcase") || SortedShows[i].title.includes("Matinee")) { //reformat show name for competition shows
+                console.log("Drawing Title " + SortedShows[i].title);
+                let pieces = SortedShows[i].title.split(" ");
+                for (let x = 0; x < pieces.length; x++) {
+                    if (!(pieces[x].includes(currentYear.toString()))) {
+                        TitleAddOn = TitleAddOn + pieces[x].toString() + " ";
+                    }
+                }
+
+                if (SortedShows[i].title.includes("Heat") || SortedShows[i].title.includes("Semi") || SortedShows[i].title.includes("Final")) {
+                    $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Title').text = "$10K Competiton \n" + TitleAddOn;
+                } else if (SortedShows[i].title.includes("Showcase")) {
+                    $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Title').text = "All-Star " + TitleAddOn;
+                } else if (SortedShows[i].title.includes("Matinee")) {
+                    $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Title').text = "Masters of Improv \n Matinee";
+                }
+
+            } else if (SortedShows[i].title.includes("Headliner")) {
+                console.log("Drawing Title " + SortedShows[i].title);
+                let pieces = SortedShows[i].title.split(" ");
+                let ShowKey = "H" + pieces[1];
+                let results = await wixData.query("Comedians")
+                    .eq("showKey", ShowKey)
+                    .eq("year", currentYear.toString())
+                    .limit(1)
+                    .find()
+                TitleAddOn = results.items[0].title;
+
+                $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Title').text = "Headliner:\n" + TitleAddOn;
+            } else {
+                $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Title').text = SortedShows[i].title;
+            }
+            $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay).src = SortedShows[i].ticketImage;
+            $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Date').text = SortedShows[i].day + ", " + SortedShows[i].date;
+            $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Time').text = SortedShows[i].time + " to " + SortedShows[i].endTime;
+            $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Button').target = "_self"; //open ticket links in same window
+            $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Button').link = SortedShows[i].ticketLink; //set ticket link
+            $w('#' + (SortedShows[i].day) + 'Show' + ShowOfDay + 'Tickets').text = SortedShows[i].ticketPrice; //set ticket price
+            $w('#' + (SortedShows[i].day) + 'BigDay').text = SortedShows[i].date; //set header date
+            ShowOfDay = ShowOfDay + 1; //increment show of day before moving on to next show
+        }
+    }
+
+    const initializeEmpty = () => {
+        $w('#HeaderSection').hide();
+        $w('#HeaderSection').collapse();
+        $w('#WednesdaySection').hide();
+        $w('#WednesdaySection').collapse();
+        $w('#ThursdaySection').hide();
+        $w('#ThursdaySection').collapse();
+        $w('#FridaySection').hide();
+        $w('#FridaySection').collapse();
+        $w('#SaturdaySection').hide();
+        $w('#SaturdaySection').collapse();
+        $w('#NoShowsSection').show();
+        $w('#NoShowsSection').expand();
+    }
+
+    const main = async () => {
+        console.log("running");
+        await createDailyShowList();
+        if (AllShows.length === 0 || (currentMonth > 5 && currentMonth < 9)) {
+            console.log("Empty Array");
+            initializeEmpty();
+        } else {
+            sortShows();
+            drawShows();
+        }
+    }
+
+    main();
+
+    /*let currentMonth = new Date().getMonth();
+	let currentDay = new Date().getDate();
+	let currentYear = new Date().getFullYear();
+
+	if(currentMonth < 4){
+		if(wixWindowFrontend.formFactor === "Mobile"){
+			$w('#MobileSubmissionYearUpper').text = currentYear.toString();
+			$w('#MobileSubmissionYearLower').text = currentYear.toString();
+		}
+		else {
+			$w('#YearUpper').text = currentYear.toString();
+			$w('#YearLower').text = currentYear.toString();
+		}
+	}*/
+
+});
