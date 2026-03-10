@@ -1,0 +1,166 @@
+import { session } from "wix-storage-frontend";
+import wixWindowFrontend from "wix-window-frontend";
+import wixData from 'wix-data'
+
+$w.onReady(function () {			
+	let currentYear = new Date().getFullYear();
+	let currentMonth = new Date().getMonth();
+	if (currentMonth >= 8 ){//skip to the next year if the month is Septemeber or later
+		currentYear = currentYear+1;
+	}
+	session.setItem("year", currentYear);
+	console.log("Current year set to: " + currentYear);
+	let startDate = new Date ();
+	let endDate = new Date ();
+	let month = "";
+	let year = "";
+	let startDay = "";
+	let endDay = "";
+	let startDayOrd = "";
+	let endDayOrd = "";
+	let startDayOrdCombo = "";
+	let endDayOrdCombo = "";
+	let yearNum = 0;
+	let submissionsActive = false;
+	let competitionCompetitors = 0;
+	let link = "";
+	let picture = "";
+	let winnerName = "";
+
+	const getDates = async () => {
+		let metaData = [];
+		let currentYearTemp = currentYear;
+		while (metaData.length === 0){//keep trying previous years until we find one that is suitable to load.
+		let results = await wixData.query("HomePage")
+		.eq("title", currentYearTemp.toString())
+		.limit(1)
+		.find()
+		metaData=results.items[0];
+		currentYearTemp = currentYearTemp -1;
+		}
+
+		let submissionsActive = metaData.inSeason;
+		let startDateString = metaData.startDate;
+		let endDateString = metaData.endDate;
+		let startDateTemp = new Date (startDateString)
+		let endDateTemp = new Date (endDateString);
+		startDate = startDateTemp;
+		endDate = endDateTemp;
+		month = getMonthName(startDate.getMonth()+1);
+		year = startDate.getFullYear().toString();
+		yearNum = startDate.getFullYear();
+		startDay = startDate.getDate().toString();
+		endDay = endDate.getDate().toString();
+		startDayOrd = getOrdinalSuffix(startDate.getDate().toString());
+		endDayOrd = getOrdinalSuffix(endDate.getDate().toString());
+		startDayOrdCombo = startDate.getDate().toString() + getOrdinalSuffix(startDate.getDate().toString());
+		endDayOrdCombo = endDate.getDate().toString() + getOrdinalSuffix(endDate.getDate().toString());
+		competitionCompetitors = metaData.competitionComedians;
+	}
+	const getLastWinner = async () => {
+		let lastWinnerData = [];
+		let lastYear = currentYear-1;
+		console.log("Last year set to: " + lastYear.toString());
+		while (lastWinnerData.length === 0){//keep trying previous years until we find one that is suitable to load.
+		let results = await wixData.query("HomePage")
+		.eq("title", lastYear.toString())
+		.limit(1)
+		.find()
+		lastWinnerData=results.items[0];
+		link = lastWinnerData.winnerSite;
+		picture = lastWinnerData.winnerPicture;
+		winnerName = lastWinnerData.winner;
+		}
+
+	}
+
+	// Define an array of month names
+const monthNames = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+/**
+ * Converts a month number (1-12) to its corresponding month name.
+ * @param {number} monthNumber - The number representing the month (1 for January, 12 for December).
+ * @returns {string} The full month name.
+ */
+function getMonthName(monthNumber) {
+  // Adjust for 0-based indexing of arrays (month 1 is index 0)
+  if (monthNumber >= 1 && monthNumber <= 12) {
+    return monthNames[monthNumber - 1];
+  } else {
+    return "Invalid Month Number"; // Handle invalid input
+  }
+}
+
+function getOrdinalSuffix(n) {
+  if (n > 3 && n < 21) { // Numbers 4-20 always get "th"
+    return "th";
+  }
+  switch (n % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
+	const main = async () => {
+		await getDates();
+		await getLastWinner();
+		let pieces = winnerName.split(" ")
+		let winnerFirstName = pieces[0];
+		$w('#ThankYou').text = " A massive thank you to " +winnerFirstName+ " and all of the fantastic comedians, audiences, and staff who helped make the third annual Loons on the Lake Comedy Festival a resounding success! We look forward to seeing you all this summer! In the meantime, don't forget to stop by to see your friends at Crooners for a drink, a bite, and the best live music and entertainment Minneapolis has to offer! \n\n Sincerely,"
+		if(wixWindowFrontend.formFactor === "Desktop"){
+			$w('#WinnerNameUpper').text = winnerName + "!";
+			$w('#WinnerNameLower').text = winnerName + "!";
+			$w('#WinnerButton').link = link;
+			$w('#WinnerImage').src = picture;
+			$w('#HeaderMonth').text = month.toUpperCase()
+			$w('#HeaderStartDay').text =  startDay;
+			$w('#HeaderStartDayOrd').text =  startDayOrd;
+			$w('#HeaderEndDay').text =  endDay;
+			$w('#HeaderEndDayOrd').text =  endDayOrd;
+			$w('#HeaderYear').text = year;
+			$w('#MonthUpper').text = month.toUpperCase();
+			$w('#MonthLower').text = month.toUpperCase();
+			$w('#YearUpper').text = year;
+			$w('#YearLower').text = year;
+			$w('#CompStartDayUpper').text = startDay;
+			$w('#CompStartDayLower').text = startDay;
+			$w('#CompStartDayOrdUpper').text = startDayOrd;
+			$w('#CompStartDayOrdLower').text = startDayOrd;
+			$w('#CompEndDayUpper').text = endDay;
+			$w('#CompEndDayLower').text = endDay;
+			$w('#CompEndDayOrdUpper').text = endDayOrd;
+			$w('#CompEndDayOrdLower').text = endDayOrd;
+			$w('#AnnualNum').text = (yearNum - 2022).toString();
+			$w('#AnnualOrd').text = getOrdinalSuffix((yearNum - 2022));
+		}
+
+		if(wixWindowFrontend.formFactor === "Mobile"){
+			$w('#WinnerImage').src = picture;
+			$w('#MobileWinnerNameLower').text = winnerName + "!";
+			$w('#MobileWinnerNameUpper').text = winnerName + "!";
+
+			$w('#WinnerImage').link = link;
+			$w('#MobileHeaderText').text = month + " " + startDayOrdCombo + " - " + endDayOrdCombo + ", " + year;
+			$w('#MobileMonthUpper').text = month;
+			$w('#MobileMonthLower').text = month;
+			$w('#MobileYearUpper').text = year;
+			$w('#MobileYearLower').text = year;
+			$w('#MobileDates').text = startDayOrdCombo + " - " + endDayOrdCombo;
+			$w('#CompNumUpper').text = competitionCompetitors.toString();
+			$w('#CompNumLower').text = competitionCompetitors.toString();
+		}
+
+	}
+
+	main();
+
+});
