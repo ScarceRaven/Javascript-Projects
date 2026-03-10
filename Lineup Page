@@ -1,0 +1,75 @@
+import { session } from "wix-storage-frontend";
+import wixWindowFrontend from "wix-window-frontend";
+import wixLocation from 'wix-location';
+
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth();
+if (currentMonth >= 8) { //skip to the next year if the month is Septemeber or later
+    currentYear = currentYear + 1;
+}
+session.setItem("year", currentYear);
+$w('#HeadlinerButton').link = "/shows/all-headliners/" + session.getItem("year");
+$w('#HeadlinerButtonHover').link = "/shows/all-headliners/" + session.getItem("year");
+console.log("Year: " + session.getItem("year"));
+//$w('#Title').text = session.getItem("year");
+
+$w.onReady(function () {
+
+    if (wixWindowFrontend.formFactor === "Desktop") { //desktop
+
+        $w('#YearMiddle').text = session.getItem("year");
+        $w('#YearLower').text = session.getItem("year");
+
+        $w('#2025Button').onMouseIn((event) => {
+            session.setItem("year", "2025");
+            console.log("Year set to " + session.getItem("year"));
+        })
+
+        $w('#2024Button').onMouseIn((event) => {
+            session.setItem("year", "2024");
+            console.log("Year set to " + session.getItem("year"));
+        })
+
+        $w('#HeadlinerButton').onMouseIn((event) => {
+            session.setItem("year", currentYear);
+            console.log("Year set to " + session.getItem("year"));
+        })
+
+        $w('#CompetitionButton').onMouseIn((event) => {
+            session.setItem("year", currentYear);
+            console.log("Year set to " + session.getItem("year"));
+        })
+
+        $w('#ShowcaseButton').onMouseIn((event) => {
+            session.setItem("year", currentYear);
+            console.log("Year set to " + session.getItem("year"));
+        })
+
+    } else { //mobile
+
+        $w('#YearLower').text = currentYear.toString();
+        $w('#YearMiddle').text = currentYear.toString();
+        $w('#MobileHeadlinerButton').link = "/shows/all-headliners/" + session.getItem("year");
+        console.log("Setting Headliners to: " + session.getItem("year"));
+
+        $w('#Mobile2024Button').onClick((event) => {
+            session.setItem("year", "2024");
+            console.log("Year set to " + session.getItem("year"));
+            wixLocation.to("/lineup-menu");
+        })
+
+        $w('#Mobile2025Button').onClick((event) => {
+            session.setItem("year", "2025");
+            console.log("Year set to " + session.getItem("year"));
+            wixLocation.to("/lineup-menu");
+        })
+        $w('#CurrentCompetitonButton').onClick((event) => {
+            session.setItem("year", currentYear);
+            console.log("Year set to " + session.getItem("year"));
+        })
+        $w('#CurrentShowcasesButton').onClick((event) => {
+            session.setItem("year", currentYear);
+            console.log("Year set to " + session.getItem("year"));
+        })
+    }
+});
