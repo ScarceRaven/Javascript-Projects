@@ -1,0 +1,228 @@
+import wixWindowFrontend from "wix-window-frontend";
+import { session } from "wix-storage-frontend";
+import wixData from "wix-data";
+
+$w.onReady(function () {
+
+    let AllShows = [];
+    let SortedShows = [];
+
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+
+    // Skip to next year if July or later
+    if (currentMonth >= 6) {
+        currentYear += 1;
+    }
+
+    /* ==============================
+       HELPER FUNCTIONS
+    ============================== */
+
+    async function showAndExpand(id) {
+        await $w(id).show();
+        await $w(id).expand();
+    }
+
+    async function hideAndCollapse(id) {
+        await $w(id).hide();
+        await $w(id).collapse();
+    }
+
+    /* ==============================
+       GET SHOWS FROM DATABASE
+    ============================== */
+
+    const createDailyShowList = async () => {
+        const results = await wixData.query("CompetitionHeats")
+            .eq("isLive", true)
+            .eq("year", currentYear.toString())
+            .isNotEmpty("day")
+            .isNotEmpty("date")
+            .limit(50)
+            .find();
+
+        AllShows = results.items;
+    };
+
+    /* ==============================
+       SORT SHOWS BY DAY
+    ============================== */
+
+    const sortShows = () => {
+
+        const daysOrder = ["Wednesday", "Thursday", "Friday", "Saturday"];
+
+        const grouped = {
+            Wednesday: [],
+            Thursday: [],
+            Friday: [],
+            Saturday: []
+        };
+
+        for (let show of AllShows) {
+            if (grouped[show.day]) {
+                grouped[show.day].push(show);
+            }
+        }
+
+        // Sort each day by time
+        for (let day of daysOrder) {
+            grouped[day].sort((a, b) => a.time.localeCompare(b.time));
+        }
+
+        SortedShows = daysOrder.flatMap(day => grouped[day]);
+    };
+
+    /* ==============================
+       DRAW SHOWS TO PAGE
+    ============================== */
+
+    const drawShows = async () => {
+
+        let showOfDay = 1;
+
+        for (let i = 0; i < SortedShows.length; i++) {
+
+            if (i > 0 && SortedShows[i].day !== SortedShows[i - 1].day) {
+                showOfDay = 1;
+            }
+
+            const show = SortedShows[i];
+            const day = show.day;
+
+            await showAndExpand(`#${day}Section${showOfDay}`);
+            await showAndExpand(`#${day}Title${showOfDay}`);
+
+            /* ---------- Subtitle ---------- */
+
+            const subtitleId = `#${day}Show${showOfDay}Subtitle`;
+
+            if (!show.subtitle || !show.isActive) {
+                await hideAndCollapse(subtitleId);
+            } else {
+                $w(subtitleId).text = show.subtitle;
+                await showAndExpand(subtitleId);
+            }
+
+            /* ---------- Title Formatting ---------- */
+
+            let titleAddOn = "";
+            const title = show.title;
+
+            if (
+                title.includes("Heat") ||
+                title.includes("Semi") ||
+                title.includes("Final") ||
+                title.includes("Showcase") ||
+                title.includes("Masters")
+            ) {
+
+                let pieces = title.split(" ");
+                titleAddOn = pieces
+                    .filter(p => !p.includes(currentYear.toString()))
+                    .join(" ")
+                    .trim();
+
+                if (
+                    title.includes("Heat") ||
+                    title.includes("Semi") ||
+                    title.includes("Final")
+                ) {
+
+                    $w(`#${day}Show${showOfDay}TitleA`).text = titleAddOn.toUpperCase();
+                    $w(`#${day}Show${showOfDay}TitleB`).text = titleAddOn.toUpperCase();
+                    $w(`#${day}Show${showOfDay}Type`).text = "$10K COMPETITION";
+
+                } else if (title.includes("Showcase")) {
+
+                    titleAddOn = title.includes("1")
+                        ? "Friday Show"
+                        : "Saturday Show";
+
+                    $w(`#${day}Show${showOfDay}TitleA`).text = titleAddOn;
+                    $w(`#${day}Show${showOfDay}TitleB`).text = titleAddOn;
+                    $w(`#${day}Show${showOfDay}Type`).text = "All-Star Showcase";
+
+                } else if (title.includes("Masters")) {
+
+                    $w(`#${day}Show${showOfDay}TitleA`).text = "Masters of Improvisation";
+                    $w(`#${day}Show${showOfDay}TitleB`).text = "Masters of Improvisation";
+                    $w(`#${day}Show${showOfDay}Type`).text = "Matinee Show";
+                }
+
+            } else if (title.includes("Headliner")) {
+
+                let pieces = title.split(" ");
+                let showKey = "H" + pieces[1];
+
+                const results = await wixData.query("Comedians")
+                    .eq("showKey", showKey)
+                    .eq("year", currentYear.toString())
+                    .limit(1)
+                    .find();
+
+                titleAddOn = results.items.length > 0
+                    ? results.items[0].title
+                    : "Headliner";
+
+                $w(`#${day}Show${showOfDay}Type`).text = "HEADLINER";
+                $w(`#${day}Show${showOfDay}TitleA`).text = titleAddOn;
+                $w(`#${day}Show${showOfDay}TitleB`).text = titleAddOn;
+                $w(`#${day}Show${showOfDay}TitleC`).text = titleAddOn;
+
+            } else {
+
+                $w(`#${day}Show${showOfDay}TitleA`).text = title;
+                $w(`#${day}Show${showOfDay}TitleB`).text = title;
+                await hideAndCollapse(`#${day}Show${showOfDay}Type`);
+            }
+
+            /* ---------- Common Fields ---------- */
+
+            $w(`#${day}Show${showOfDay}`).src = show.ticketImage;
+            $w(`#${day}Show${showOfDay}Day`).text = day;
+            $w(`#${day}Show${showOfDay}Date`).text =
+                `${show.date} \n${show.year}`;
+            $w(`#${day}Show${showOfDay}Time`).text =
+                " at " + show.time;
+
+            $w(`#${day}Show${showOfDay}Button`).target = "_self";
+            $w(`#${day}Show${showOfDay}Button`).link = show.ticketLink;
+            $w(`#${day}Show${showOfDay}Tickets`).text = show.ticketPrice;
+            $w(`#${day}BigDay`).text = show.date;
+
+            showOfDay++;
+        }
+    };
+
+    /* ==============================
+       EMPTY STATE
+    ============================== */
+
+    const initializeEmpty = async () => {
+        await hideAndCollapse('#HeaderSection');
+        await showAndExpand('#NoShowsSection');
+    };
+
+    /* ==============================
+       MAIN
+    ============================== */
+
+    const main = async () => {
+
+        await createDailyShowList();
+
+        if (
+            AllShows.length === 0 ||
+            (currentMonth >= 6 && currentMonth <= 8)
+        ) {
+            await initializeEmpty();
+        } else {
+            sortShows();
+            await drawShows();
+        }
+    };
+
+    main();
+});
