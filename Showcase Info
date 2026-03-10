@@ -1,0 +1,48 @@
+import wixWindowFrontend from "wix-window-frontend";
+$w.onReady(function () {
+ $w("#dynamicDataset").onReady(() => {
+		let currentYear = new Date().getFullYear();
+		let project = $w("#dynamicDataset").getCurrentItem();
+		$w('#Deadline').text = "All submissions must be received by " + project.deadline + ".";
+
+		if (!project.datesSet && wixWindowFrontend.formFactor === "Desktop"){
+			$w("#Dates").hide();
+			$w("#Dates").collapse();
+			$w("#Times").hide();
+			$w("#Times").collapse();
+			$w("#NoDates").show();
+			$w("#NoDates").expand();
+		}
+
+		//Turn off submissions between May 2nd and August 31st inclusive.
+		let currentMonth = new Date().getMonth();
+		let currentDay = new Date().getDate();
+		
+
+		let closingMonth  = 4;
+		let closingDay= 0;
+
+		if (project.deadline.includes("April")){
+			closingMonth = 3;
+		}
+
+		let pieces = project.deadline.split("/");
+		closingDay = parseInt(pieces[1]);
+
+		console.log("Ending Month: " + closingMonth);
+		console.log("Ending Day: " + closingDay);
+	
+
+
+		if (currentMonth >= closingMonth && currentMonth <= 7 || ((currentMonth === (closingMonth -1) && currentDay > closingDay))){ //display the submissions closed section when the date is between 5/2 and 8/31 inclusive
+			$w('#YearText').text = "For June " + currentYear.toString();
+			$w('#ComeBack').text = "The application for " + (currentYear+1).toString() + " will open on September 1st."
+			$w('#SubmissionsClosed').show();
+			$w('#SubmissionsClosed').expand();
+			$w('#SubmissionFormSection').hide();
+			$w('#SubmissionFormSection').collapse();
+			$w('#DatesSection').hide();
+			$w('#DatesSection').collapse();
+		}
+ 	})
+});
