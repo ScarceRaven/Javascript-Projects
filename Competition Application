@@ -1,0 +1,43 @@
+import wixWindowFrontend from "wix-window-frontend";
+import wixData from 'wix-data';
+
+$w.onReady(function () {
+
+	$w("#dynamicDataset").onReady(() => {
+		let project = $w("#dynamicDataset").getCurrentItem();
+		if (wixWindowFrontend.formFactor === "Mobile"){
+			$w("#MobileAppDisclaimer").text = project.disclaimer;
+		}
+		let currentMonth = new Date().getMonth();
+		let currentDay = new Date().getDate();
+		let currentYear = new Date().getFullYear();
+	
+
+	//Turn off submissions between May 2nd and August 31st inclusive.
+
+		let closingMonth  = 3;
+		let closingDay= 27;
+
+		if (project.deadline.includes("")){
+			closingMonth = 3;
+		}
+
+		let pieces = project.deadline.split("/");
+		closingDay = parseInt(pieces[1]);
+
+		console.log("Ending Month: " + closingMonth);
+		console.log("Ending Day: " + closingDay);
+		console.log("Current Month:" + currentMonth)
+
+		if (currentMonth >= closingMonth && currentMonth <= 7 || ((currentMonth === (closingMonth -1) && currentDay > closingDay))){ //display only the submissions closed section when the date is between 5/2 and 8/31 inclusive
+			$w('#YearText').text = "For " + currentYear.toString();
+			$w('#ComeBack').text = "The application for " + (currentYear+1).toString() + " will open on September 1st. We hope to see you at the festival!"
+			$w('#Disclaimer').collapse();
+			$w('#Disclaimer').hide();
+			$w('#SubmissionsClosed').show();
+			$w('#SubmissionsClosed').expand();
+			$w('#SubmissionsOpen').hide();
+			$w('#SubmissionsOpen').collapse();
+		}
+	})
+});
